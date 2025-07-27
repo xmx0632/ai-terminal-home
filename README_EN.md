@@ -11,27 +11,11 @@
 - 🚀 Ready-to-use development environment
 - 🛠️ Comprehensive management script for daily operations
 - 🔄 Proxy configuration support for network access
-- 📦 Pre-built Docker images available for quick deployment
+- 📦 Support for building from source or using pre-built Docker images
 
 ## Quick Start
 
-### Method 1: Using Pre-built Images (Recommended)
-
-1. Pull and run the latest image from Docker Hub:
-   ```bash
-   # Pull and run the latest version
-   VERSION=0.0.1 docker-compose -f docker-compose.pull.yaml up -d
-   
-   # Or specify a version
-   VERSION=0.0.1 docker-compose -f docker-compose.pull.yaml up -d
-   ```
-
-2. Access the container:
-   ```bash
-   docker exec -it ai-terminal-home bash
-   ```
-
-### Method 2: Building from Source
+### Method 1: Building from Source (Recommended)
 
 1. Clone the repository:
    ```bash
@@ -42,13 +26,30 @@
 2. Build and start the container:
    ```bash
    # Build and start
-   docker-compose up -d --build
+   ./ai-terminal.sh build
+   ./ai-terminal.sh start
    
-   # View logs
-   docker-compose logs -f
+   # Or use docker-compose directly
+   docker-compose --profile build up -d
    ```
 
 3. Access the container:
+   ```bash
+   docker exec -it ai-terminal-home bash
+   ```
+
+### Method 2: Using Pre-built Images
+
+1. Pull and run the latest image:
+   ```bash
+   # Pull and run the latest version
+   VERSION=latest docker-compose --profile pull up -d
+   
+   # Or specify a version
+   VERSION=0.0.1 docker-compose --profile pull up -d
+   ```
+
+2. Access the container:
    ```bash
    docker exec -it ai-terminal-home bash
    ```
@@ -73,11 +74,11 @@ all_proxy=socks5://127.0.0.1:7890
 ### Start/Stop Containers
 
 ```bash
-# Start using local build (default)
-./ai-terminal.sh start
+# Build the image
+./ai-terminal.sh build
 
-# Start using pre-built image
-./ai-terminal.sh start --pull
+# Start
+./ai-terminal.sh start
 
 # Stop
 ./ai-terminal.sh stop
@@ -91,12 +92,6 @@ all_proxy=socks5://127.0.0.1:7890
 ```bash
 # View logs
 ./ai-terminal.sh logs
-
-# View logs for pre-built image
-./ai-terminal.sh logs --pull
-
-# Follow logs in real-time
-./ai-terminal.sh logs -f
 ```
 
 ### Other Commands
@@ -105,9 +100,8 @@ all_proxy=socks5://127.0.0.1:7890
 # Check container status
 ./ai-terminal.sh status
 
-# Update container
-./ai-terminal.sh update          # Update local build
-./ai-terminal.sh update --pull   # Update pre-built image
+# Update container (from source)
+./ai-terminal.sh update
 
 # Show installed tool versions
 ./ai-terminal.sh versions
@@ -162,20 +156,17 @@ You can run both Gemini and Claude Code simultaneously in tmux:
 
 1. Update the version number:
    ```bash
-   # Update VERSION in docker-compose.pull.yaml
+   # Update VERSION in docker-compose.yaml
    VERSION=0.0.2
    ```
 
 2. Build and push the image:
    ```bash
-   # Build the image (for local build only)
+   # Build the image
    ./ai-terminal.sh build
    
    # Push the image to Docker Hub
    ./push-image.sh -u your_dockerhub_username -v 0.0.2
-   
-   # After pushing, you can pull and run the new version with:
-   # VERSION=0.0.2 ./ai-terminal.sh start --pull
    ```
 
 ## FAQ
@@ -184,16 +175,23 @@ You can run both Gemini and Claude Code simultaneously in tmux:
 
 ```bash
 # Stop and remove the old container
-docker-compose -f docker-compose.pull.yaml down
+docker-compose down
 
-# Pull and start the new version
-VERSION=latest docker-compose -f docker-compose.pull.yaml up -d
+# Pull the latest code
+git pull
+
+# Rebuild and start
+./ai-terminal.sh update
 ```
 
 ### How to view container logs?
 
 ```bash
-docker-compose -f docker-compose.pull.yaml logs -f
+# View logs
+./ai-terminal.sh logs
+
+# Follow logs in real-time
+./ai-terminal.sh logs -f
 ```
 
 ## License

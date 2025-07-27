@@ -11,27 +11,11 @@
 - 🚀 开箱即用的开发环境
 - 🛠️ 完善的管理脚本，简化日常操作
 - 🔄 支持代理配置，方便网络访问
-- 📦 提供预构建的 Docker 镜像，支持快速部署
+- 📦 支持从源码构建或使用预构建的 Docker 镜像
 
 ## 快速开始
 
-### 方式一：使用预构建镜像（推荐）
-
-1. 从 Docker Hub 拉取并运行最新镜像：
-   ```bash
-   # 拉取并运行最新版本
-   VERSION=0.0.1 docker-compose -f docker-compose.pull.yaml up -d
-   
-   # 或者指定版本
-   VERSION=0.0.1 docker-compose -f docker-compose.pull.yaml up -d
-   ```
-
-2. 访问容器：
-   ```bash
-   docker exec -it ai-terminal-home bash
-   ```
-
-### 方式二：从源码构建镜像
+### 方式一：从源码构建（推荐）
 
 1. 克隆仓库：
    ```bash
@@ -42,13 +26,30 @@
 2. 构建并启动容器：
    ```bash
    # 构建并启动
-   docker-compose up -d --build
+   ./ai-terminal.sh build
+   ./ai-terminal.sh start
    
-   # 查看日志
-   docker-compose logs -f
+   # 或者直接使用 docker-compose
+   docker-compose --profile build up -d
    ```
 
 3. 访问容器：
+   ```bash
+   docker exec -it ai-terminal-home bash
+   ```
+
+### 方式二：使用预构建镜像
+
+1. 拉取并运行最新镜像：
+   ```bash
+   # 拉取并运行最新版本
+   VERSION=latest docker-compose --profile pull up -d
+   
+   # 或者指定版本
+   VERSION=0.0.1 docker-compose --profile pull up -d
+   ```
+
+2. 访问容器：
    ```bash
    docker exec -it ai-terminal-home bash
    ```
@@ -73,6 +74,9 @@ all_proxy=socks5://127.0.0.1:7890
 ### 启动/停止容器
 
 ```bash
+# 构建镜像
+./ai-terminal.sh build
+
 # 启动
 ./ai-terminal.sh start
 
@@ -88,9 +92,6 @@ all_proxy=socks5://127.0.0.1:7890
 ```bash
 # 查看日志
 ./ai-terminal.sh logs
-
-# 实时查看日志
-./ai-terminal.sh logs -f
 ```
 
 ### 其他命令
@@ -99,7 +100,7 @@ all_proxy=socks5://127.0.0.1:7890
 # 查看容器状态
 ./ai-terminal.sh status
 
-# 更新容器
+# 更新容器（从源码）
 ./ai-terminal.sh update
 
 # 查看已安装工具版本
@@ -152,7 +153,7 @@ tmux ls
 
 1. 更新版本号：
    ```bash
-   # 在 docker-compose.pull.yaml 中更新 VERSION 变量
+   # 在 docker-compose.yaml 中更新 VERSION 变量
    VERSION=0.0.2
    ```
 
@@ -171,16 +172,23 @@ tmux ls
 
 ```bash
 # 停止并删除旧容器
-docker-compose -f docker-compose.pull.yaml down
+docker-compose down
 
-# 拉取并启动新版本
-VERSION=最新版本号 docker-compose -f docker-compose.pull.yaml up -d
+# 拉取最新代码
+git pull
+
+# 重新构建并启动
+./ai-terminal.sh update
 ```
 
 ### 如何查看容器日志？
 
 ```bash
-docker-compose -f docker-compose.pull.yaml logs -f
+# 查看日志
+./ai-terminal.sh logs
+
+# 实时查看日志
+./ai-terminal.sh logs -f
 ```
 
 ## 许可证

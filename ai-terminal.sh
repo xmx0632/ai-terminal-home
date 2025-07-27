@@ -8,33 +8,26 @@ NC='\033[0m' # No Color
 
 # 容器名称
 CONTAINER_NAME="ai-terminal-home"
-# 默认使用构建配置
-COMPOSE_FILE="docker-compose.yaml"
 
 # 显示帮助信息
 show_help() {
     echo -e "${YELLOW}AI Terminal Home 管理脚本${NC}"
-    echo "用法: $0 [命令] [选项]"
+    echo "用法: $0 [命令]"
     echo ""
     echo "可用命令:"
-    echo "  build             构建 Docker 镜像"
-    echo "  start             启动容器（如果不存在则构建）"
+    echo "  build [version] [force] 构建 Docker 镜像（可指定版本号和是否强制重建）"
+    echo "  start [version]   启动容器（如果不存在则构建，支持指定版本号）"
     echo "  stop              停止容器"
     echo "  restart           重启容器"
     echo "  status            查看容器状态"
     echo "  logs              查看容器日志"
-    echo "  update            更新代码并重建容器"
     echo "  shell             进入容器 shell"
     echo "  versions          显示已安装工具的版本信息"
     echo "  help              显示此帮助信息"
     echo ""
-    echo "选项:"
-    echo "  --pull            使用预构建的 Docker 镜像（从 Docker Hub 拉取）"
-    echo ""
     echo "示例:"
     echo "  $0 build"
     echo "  $0 start"
-    echo "  $0 start --pull   使用预构建镜像启动"
     echo "  $0 stop"
     echo "  $0 logs"
 }
@@ -59,12 +52,55 @@ check_docker() {
 
 # 构建镜像
 build_image() {
-    local compose_file=$1
-    echo -e "${GREEN}正在构建 Docker 镜像...${NC}"
-    docker-compose -f "$compose_file" build
+    local version=${1:-latest}
+    local force_rebuild=${2:-false}
     
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN}镜像构建成功!${NC}"
+    if [ "$version" != "latest" ]; then
+        echo -e "${GREEN}使用版本号: $version${NC}"
+    fi
+    
+    # 如果强制重建，先删除现有镜像
+    if [ "$force_rebuild" = true ]; then
+        echo -e "${YELLOW}正在删除现有镜像...${NC}"
+        docker rmi -f $(docker images -q ai-terminal-home-ai-terminal-home xmx0632/ai-terminal-home 2>/dev/null) 2>/dev/null || true
+        echo -e "${YELLOW}正在清理未使用的镜像...${NC}"
+        docker image prune -f
+    fi
+    
+    echo -e "${YELLOW}正在构建 Docker 镜像...${NC}"
+    
+    # 使用 docker-compose build 构建镜像，指定 profile 为 build
+    local build_cmd="docker-compose --profile build build"
+    if [ "$force_rebuild" = true ]; then
+        build_cmd="$build_cmd --no-cache"
+    fi
+    
+    if $build_cmd --build-arg VERSION="$version" --build-arg CACHE_BUSTER="$(date +%s)"; then
+        # 获取新构建的镜像ID
+        local image_id=$(docker images -q ai-terminal-home-ai-terminal-home:latest 2>/dev/null)
+        
+        if [ -n "$image_id" ]; then
+            # 标记镜像
+            local repo="xmx0632/ai-terminal-home"
+            
+            # 如果指定了版本号，则标记版本
+            if [ "$version" != "latest" ]; then
+                echo -e "${GREEN}正在标记镜像版本: $version${NC}"
+                docker tag $image_id $repo:$version
+            fi
+            
+            # 始终标记为 latest
+            docker tag $image_id $repo:latest
+            
+            # 显示镜像信息
+            echo -e "${GREEN}镜像构建并标记成功!${NC}\n${YELLOW}镜像信息:${NC}"
+            # docker images | head -n 1
+            docker images | grep -E 'REPOSITORY|ai-terminal-home'
+        else
+            echo -e "${YELLOW}警告: 无法获取新构建的镜像ID${NC}"
+            docker images | head -n 1
+            docker images | grep ai-terminal-home || echo "未找到相关镜像"
+        fi
     else
         echo -e "${RED}镜像构建失败!${NC}"
         exit 1
@@ -73,25 +109,47 @@ build_image() {
 
 # 启动容器
 start_container() {
-    local compose_file=$1
-    # 检查容器是否已存在
-    if [ "$(docker ps -aq -f name=^/${CONTAINER_NAME}$)" ]; then
-        # 容器存在，检查是否在运行
-        if [ "$(docker ps -q -f name=^/${CONTAINER_NAME}$)" ]; then
-            echo -e "${YELLOW}容器已经在运行中!${NC}"
-            return 0
-        else
-            echo -e "${YELLOW}启动已存在的容器...${NC}"
-            docker start ${CONTAINER_NAME}
-        fi
-    else
-        echo -e "${GREEN}创建并启动新容器...${NC}"
-        docker-compose -f "$compose_file" up -d
+    local version=${1:-latest}
+    
+    # 检查版本号是否有效
+    if [ "$version" != "latest" ]; then
+        echo -e "${GREEN}尝试启动版本: $version${NC}"
     fi
     
-    if [ $? -eq 0 ]; then
+    # 首先检查本地是否存在指定版本的镜像
+    if docker images xmx0632/ai-terminal-home:$version | grep -q $version; then
+        echo -e "${GREEN}使用本地镜像版本: $version${NC}"
+    else
+        # 本地不存在指定版本，尝试拉取
+        echo -e "${YELLOW}本地不存在版本 ${version}，正在尝试拉取镜像...${NC}"
+        if ! docker pull xmx0632/ai-terminal-home:$version 2>/dev/null; then
+            if [ "$version" != "latest" ]; then
+                echo -e "${YELLOW}版本 $version 不存在，尝试使用 latest 版本${NC}"
+            fi
+            version="latest"
+            # 检查本地latest版本是否存在
+            if ! docker images xmx0632/ai-terminal-home:latest | grep -q latest; then
+                # 本地不存在latest版本，尝试拉取
+                if ! docker pull xmx0632/ai-terminal-home:latest; then
+                    echo -e "${RED}错误: 无法拉取 latest 版本的镜像${NC}"
+                    exit 1
+                fi
+            else
+                echo -e "${GREEN}使用本地 latest 镜像${NC}"
+            fi
+        fi
+    fi
+    
+    # 停止并删除现有容器
+    if [ -n "$(docker ps -a -q -f name=^${CONTAINER_NAME}$)" ]; then
+        stop_container
+    fi
+    
+    # 设置环境变量并启动容器
+    echo -e "${YELLOW}正在启动容器...${NC}"
+    if VERSION="$version" docker-compose --profile pull up -d; then
         echo -e "${GREEN}容器启动成功!${NC}"
-        echo -e "${YELLOW}使用 'docker exec -it ${CONTAINER_NAME} bash' 进入容器${NC}"
+        echo -e "使用 'docker exec -it $CONTAINER_NAME bash' 进入容器"
     else
         echo -e "${RED}容器启动失败!${NC}"
         exit 1
@@ -100,23 +158,27 @@ start_container() {
 
 # 停止容器
 stop_container() {
-    local compose_file=$1
     echo -e "${YELLOW}正在停止容器...${NC}"
-    docker-compose -f "$compose_file" down
     
-    if [ $? -eq 0 ]; then
+    # 先停止容器
+    if docker stop ${CONTAINER_NAME} >/dev/null; then
         echo -e "${GREEN}容器已停止!${NC}"
     else
-        echo -e "${RED}停止容器时出错!${NC}"
-        exit 1
+        echo -e "${YELLOW}停止容器时出错或容器未运行${NC}"
+    fi
+    
+    # 删除容器
+    if docker rm ${CONTAINER_NAME} >/dev/null 2>&1; then
+        echo -e "${GREEN}容器已删除!${NC}"
+    else
+        echo -e "${YELLOW}删除容器时出错或容器不存在${NC}"
     fi
 }
 
 # 重启容器
 restart_container() {
-    local compose_file=$1
     echo -e "${YELLOW}正在重启容器...${NC}"
-    docker-compose -f "$compose_file" restart
+    docker-compose restart
     
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}容器已重启!${NC}"
@@ -137,46 +199,24 @@ container_status() {
 
 # 查看容器日志
 show_logs() {
-    local compose_file=$1
     echo -e "${YELLOW}正在显示容器日志 (Ctrl+C 退出)...${NC}"
-    docker-compose -f "$compose_file" logs -f
-}
-
-# 更新容器
-update_container() {
-    local compose_file=$1
-    echo -e "${YELLOW}正在更新容器...${NC}"
-    
-    # 如果是拉取模式，直接重新拉取镜像
-    if [ "$compose_file" = "docker-compose.pull.yaml" ]; then
-        echo -e "${GREEN}拉取最新镜像...${NC}"
-        docker-compose -f "$compose_file" pull
-    else
-        # 否则从源码构建
-        echo -e "${GREEN}拉取最新代码...${NC}"
-        git pull
-        
-        # 重新构建镜像
-        build_image "$compose_file"
-    fi
-    
-    # 停止并删除旧容器
-    echo -e "${GREEN}重新创建容器...${NC}"
-    docker-compose -f "$compose_file" up -d --force-recreate
-    
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN}容器更新成功!${NC}"
-    else
-        echo -e "${RED}容器更新失败!${NC}"
-        exit 1
-    fi
+    docker-compose logs -f
 }
 
 # 进入容器 shell
 enter_shell() {
-    echo -e "${YELLOW}正在进入容器 shell...${NC}"
-    echo -e "${GREEN}使用 'exit' 退出容器${NC}"
-    docker exec -it ${CONTAINER_NAME} bash
+    # 检查容器是否在运行
+    if [ "$(docker ps -q -f name=^/${CONTAINER_NAME}$)" ]; then
+        echo -e "${YELLOW}正在进入容器 shell...${NC}"
+        echo -e "${GREEN}使用 'exit' 退出容器${NC}"
+        # 使用 -i 保持 STDIN 打开，-t 分配一个伪终端
+        docker exec -it ${CONTAINER_NAME} /bin/bash || \
+        docker exec -it ${CONTAINER_NAME} /bin/sh || \
+        (echo -e "${RED}无法进入容器 shell，请尝试手动执行: docker exec -it ${CONTAINER_NAME} /bin/bash${NC}" && exit 1)
+    else
+        echo -e "${RED}错误: 容器未运行，请先启动容器${NC}"
+        exit 1
+    fi
 }
 
 # 显示已安装工具的版本
@@ -199,58 +239,26 @@ show_versions() {
 main() {
     # 检查 Docker 是否安装
     check_docker
-    
-    # 解析选项
-    local pull_mode=false
-    local args=()
-    
-    # 处理选项参数
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            --pull)
-                pull_mode=true
-                shift
-                ;;
-            *)
-                args+=("$1")
-                shift
-                ;;
-        esac
-    done
-    
-    # 设置 compose 文件
-    local compose_file="docker-compose.yaml"
-    if [ "$pull_mode" = true ]; then
-        compose_file="docker-compose.pull.yaml"
-        echo -e "${YELLOW}使用预构建镜像模式${NC}"
-    fi
-    
-    # 解析命令
-    case "${args[0]}" in
+
+    # 解析命令行参数
+    case "$1" in
         build)
-            if [ "$pull_mode" = true ]; then
-                echo -e "${YELLOW}拉取模式下无需构建，使用 'start --pull' 启动容器${NC}"
-                exit 0
-            fi
-            build_image "$compose_file"
+            build_image "$2" "${3:-false}"  # 第二个参数为版本号，第三个参数为是否强制重建
             ;;
         start)
-            start_container "$compose_file"
+            start_container "$2"
             ;;
         stop)
-            stop_container "$compose_file"
+            stop_container
             ;;
         restart)
-            restart_container "$compose_file"
+            restart_container
             ;;
         status)
             container_status
             ;;
         logs)
-            show_logs "$compose_file"
-            ;;
-        update)
-            update_container "$compose_file"
+            show_logs
             ;;
         shell)
             enter_shell
@@ -258,13 +266,8 @@ main() {
         versions)
             show_versions
             ;;
-        help|--help|-h)
+        help|--help|-h|*)
             show_help
-            ;;
-        *)
-            echo -e "${RED}未知命令: ${args[0]}${NC}"
-            show_help
-            exit 1
             ;;
     esac
 }
