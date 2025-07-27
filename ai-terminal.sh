@@ -8,6 +8,8 @@ NC='\033[0m' # No Color
 
 # 容器名称
 CONTAINER_NAME="ai-terminal-home"
+# 默认使用构建配置
+COMPOSE_FILE="docker-compose.yaml"
 
 # 显示帮助信息
 show_help() {
@@ -26,9 +28,13 @@ show_help() {
     echo "  versions          显示已安装工具的版本信息"
     echo "  help              显示此帮助信息"
     echo ""
+    echo "选项:"
+    echo "  --pull            使用预构建的 Docker 镜像（从 Docker Hub 拉取）"
+    echo ""
     echo "示例:"
     echo "  $0 build"
     echo "  $0 start"
+    echo "  $0 start --pull   使用预构建镜像启动"
     echo "  $0 stop"
     echo "  $0 logs"
 }
@@ -53,8 +59,9 @@ check_docker() {
 
 # 构建镜像
 build_image() {
+    local compose_file=$1
     echo -e "${GREEN}正在构建 Docker 镜像...${NC}"
-    docker-compose build
+    docker-compose -f "$compose_file" build
     
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}镜像构建成功!${NC}"
@@ -66,6 +73,7 @@ build_image() {
 
 # 启动容器
 start_container() {
+    local compose_file=$1
     # 检查容器是否已存在
     if [ "$(docker ps -aq -f name=^/${CONTAINER_NAME}$)" ]; then
         # 容器存在，检查是否在运行
@@ -78,7 +86,7 @@ start_container() {
         fi
     else
         echo -e "${GREEN}创建并启动新容器...${NC}"
-        docker-compose up -d
+        docker-compose -f "$compose_file" up -d
     fi
     
     if [ $? -eq 0 ]; then
@@ -92,8 +100,9 @@ start_container() {
 
 # 停止容器
 stop_container() {
+    local compose_file=$1
     echo -e "${YELLOW}正在停止容器...${NC}"
-    docker-compose down
+    docker-compose -f "$compose_file" down
     
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}容器已停止!${NC}"
@@ -105,8 +114,9 @@ stop_container() {
 
 # 重启容器
 restart_container() {
+    local compose_file=$1
     echo -e "${YELLOW}正在重启容器...${NC}"
-    docker-compose restart
+    docker-compose -f "$compose_file" restart
     
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}容器已重启!${NC}"
@@ -127,24 +137,32 @@ container_status() {
 
 # 查看容器日志
 show_logs() {
+    local compose_file=$1
     echo -e "${YELLOW}正在显示容器日志 (Ctrl+C 退出)...${NC}"
-    docker-compose logs -f
+    docker-compose -f "$compose_file" logs -f
 }
 
 # 更新容器
 update_container() {
+    local compose_file=$1
     echo -e "${YELLOW}正在更新容器...${NC}"
     
-    # 拉取最新代码
-    echo -e "${GREEN}拉取最新代码...${NC}"
-    git pull
-    
-    # 重新构建镜像
-    build_image
+    # 如果是拉取模式，直接重新拉取镜像
+    if [ "$compose_file" = "docker-compose.pull.yaml" ]; then
+        echo -e "${GREEN}拉取最新镜像...${NC}"
+        docker-compose -f "$compose_file" pull
+    else
+        # 否则从源码构建
+        echo -e "${GREEN}拉取最新代码...${NC}"
+        git pull
+        
+        # 重新构建镜像
+        build_image "$compose_file"
+    fi
     
     # 停止并删除旧容器
     echo -e "${GREEN}重新创建容器...${NC}"
-    docker-compose up -d --force-recreate --build
+    docker-compose -f "$compose_file" up -d --force-recreate
     
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}容器更新成功!${NC}"
@@ -166,11 +184,11 @@ show_versions() {
     if [ "$(docker ps -q -f name=^/${CONTAINER_NAME}$)" ]; then
         echo -e "${YELLOW}已安装工具版本:${NC}"
         echo "----------------------------"
-        echo -n "Node.js: " && docker exec ${CONTAINER_NAME} node --version
-        echo -n "npm:     " && docker exec ${CONTAINER_NAME} npm --version
-        echo -n "Yarn:    " && docker exec ${CONTAINER_NAME} yarn --version
-        echo -n "Claude:  " && docker exec ${CONTAINER_NAME} claude --version
-        echo -n "Gemini:  " && docker exec ${CONTAINER_NAME} gemini --version
+        echo -n "Node.js: " && docker exec ${CONTAINER_NAME} node --version 2>/dev/null || echo "未安装"
+        echo -n "npm:     " && docker exec ${CONTAINER_NAME} npm --version 2>/dev/null || echo "未安装"
+        echo -n "Yarn:    " && docker exec ${CONTAINER_NAME} yarn --version 2>/dev/null || echo "未安装"
+        echo -n "Claude:  " && (docker exec ${CONTAINER_NAME} claude --version 2>/dev/null || echo "未安装")
+        echo -n "Gemini:  " && (docker exec ${CONTAINER_NAME} gemini --version 2>/dev/null || echo "未安装")
     else
         echo -e "${RED}错误: 容器未运行，请先启动容器${NC}"
         exit 1
@@ -182,37 +200,71 @@ main() {
     # 检查 Docker 是否安装
     check_docker
     
+    # 解析选项
+    local pull_mode=false
+    local args=()
+    
+    # 处理选项参数
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --pull)
+                pull_mode=true
+                shift
+                ;;
+            *)
+                args+=("$1")
+                shift
+                ;;
+        esac
+    done
+    
+    # 设置 compose 文件
+    local compose_file="docker-compose.yaml"
+    if [ "$pull_mode" = true ]; then
+        compose_file="docker-compose.pull.yaml"
+        echo -e "${YELLOW}使用预构建镜像模式${NC}"
+    fi
+    
     # 解析命令
-    case "$1" in
+    case "${args[0]}" in
         build)
-            build_image
+            if [ "$pull_mode" = true ]; then
+                echo -e "${YELLOW}拉取模式下无需构建，使用 'start --pull' 启动容器${NC}"
+                exit 0
+            fi
+            build_image "$compose_file"
             ;;
         start)
-            start_container
+            start_container "$compose_file"
             ;;
         stop)
-            stop_container
+            stop_container "$compose_file"
             ;;
         restart)
-            restart_container
+            restart_container "$compose_file"
             ;;
         status)
             container_status
             ;;
         logs)
-            show_logs
+            show_logs "$compose_file"
             ;;
         update)
-            update_container
+            update_container "$compose_file"
             ;;
         shell)
             enter_shell
             ;;
-        versions|--versions|-v)
+        versions)
             show_versions
             ;;
-        help|--help|-h|*)
+        help|--help|-h)
             show_help
+            ;;
+        *)
+            echo -e "${RED}未知命令: ${args[0]}${NC}"
+            show_help
+            exit 1
             ;;
     esac
 }
