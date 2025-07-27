@@ -106,6 +106,46 @@ all_proxy=socks5://127.0.0.1:7890
 ./ai-terminal.sh versions
 ```
 
+## 使用 tmux 管理会话
+
+### 查看 tmux 会话
+
+在容器中，您可以使用 tmux 来管理多个终端会话。以下是查看当前 tmux 会话的命令：
+
+```bash
+tmux ls
+```
+
+![查看 tmux 会话](./images/image-tmux-ls.png)
+
+### 运行 Gemini 和 Claude Code
+
+您可以在 tmux 中同时运行 Gemini 和 Claude Code：
+
+1. 启动 tmux：
+   ```bash
+   tmux new -s ai
+   ```
+
+2. 分割窗口：
+   - 水平分割：`Ctrl+b "`
+   - 垂直分割：`Ctrl+b %`
+
+3. 在不同面板中分别运行：
+   - Gemini: `gemini`
+   - Claude Code: `claude`
+
+![Gemini 和 Claude Code 同时运行](./images/image-gemini-cc.png)
+
+### 常用 tmux 命令
+
+- 创建新窗口：`Ctrl+b c`
+- 切换窗口：`Ctrl+b 窗口号`
+- 分离会话：`Ctrl+b d`
+- 重新连接会话：`tmux attach -t ai`
+- 列出会话：`tmux ls`
+- 结束会话：`tmux kill-session -t ai`
+
 ## 构建和发布
 
 ### 构建新版本
