@@ -3,23 +3,10 @@ x-ai-terminal-common: &ai-terminal-common
   container_name: ai-terminal-home
   tty: true
   stdin_open: true
-  environment:
-    - ANTHROPIC_BASE_URL=${ANTHROPIC_BASE_URL:-https://api.moonshot.cn/anthropic/}
-    - ANTHROPIC_AUTH_TOKEN=${ANTHROPIC_AUTH_TOKEN:-your_api_key_sk}
-    - GEMINI_API_KEY=${GEMINI_API_KEY:-your_gemini_api_key}
-    # Uppercase proxy variables (for most applications)
-    - HTTPS_PROXY=${HTTPS_PROXY:-http://127.0.0.1:7890}
-    - HTTP_PROXY=${HTTP_PROXY:-http://127.0.0.1:7890}
-    - ALL_PROXY=${ALL_PROXY:-socks5://127.0.0.1:7890}
-    # Lowercase proxy variables (for compatibility)
-    - https_proxy=${https_proxy:-http://127.0.0.1:7890}
-    - http_proxy=${http_proxy:-http://127.0.0.1:7890}
-    - all_proxy=${all_proxy:-socks5://127.0.0.1:7890}
-    # System settings
-    - TZ=Asia/Shanghai
-    - LANG=zh_CN.UTF-8
-    - LANGUAGE=zh_CN:zh
-    - LC_ALL=zh_CN.UTF-8
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+  env_file:
+    - .env
   volumes:
     - ./data:/data
     - /etc/localtime:/etc/localtime:ro
