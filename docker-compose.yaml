@@ -3,6 +3,8 @@ x-ai-terminal-common: &ai-terminal-common
   container_name: ai-terminal-home
   tty: true
   stdin_open: true
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
   environment:
     - ANTHROPIC_BASE_URL=${ANTHROPIC_BASE_URL:-https://api.moonshot.cn/anthropic/}
     - ANTHROPIC_AUTH_TOKEN=${ANTHROPIC_AUTH_TOKEN:-your_api_key_sk}
