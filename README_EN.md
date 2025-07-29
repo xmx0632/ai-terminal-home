@@ -108,6 +108,10 @@ all_proxy=socks5://127.0.0.1:7890
 
 # Show help
 ./ai-terminal.sh help
+
+# Upgrade tools
+./ai-terminal.sh upgrade cc    # Upgrade claudecode
+./ai-terminal.sh upgrade gcli  # Upgrade gemini cli
 ```
 
 ## Using tmux for Session Management
