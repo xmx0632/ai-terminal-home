@@ -76,11 +76,21 @@
 
 #### 仅构建不推送
 ```bash
-# 构建多平台镜像并保存到本地
+# 构建多平台镜像并保存到本地 Docker 镜像
 ./build.sh -i ai-terminal-home -t 1.0.0 --build-only
 
-# 指定输出目录
-./build.sh -i ai-terminal-home -t 1.0.0 --build-only -o /tmp/build_output
+# 查看已构建的镜像
+docker images | grep ai-terminal-home
+
+# 查看特定平台的镜像
+docker image inspect xmx0632/ai-terminal-home:1.0.0-linux-amd64
+
+# 构建并导出为 tar 文件（用于离线部署）
+./build.sh -i ai-terminal-home -t 1.0.0 --build-only -o /path/to/output/dir
+
+# 在目标机器上加载镜像
+docker load -i /path/to/output/dir/ai-terminal-home-1.0.0-linux-amd64.tar
+docker load -i /path/to/output/dir/ai-terminal-home-1.0.0-linux-arm64.tar
 ```
 
 #### 构建并推送
@@ -105,18 +115,23 @@
 ### 3. 分步操作：先构建后推送
 
 ```bash
-# 1. 先构建镜像并保存到本地
+# 1. 先构建镜像并保存到本地 Docker
 ./build.sh -i ai-terminal-home -t 1.0.0 --build-only
 
-# 2. 加载并推送镜像
-# 首先加载镜像
-docker load -i build_output/ai-terminal-home-1.0.0.tar
+# 2. 推送指定平台的镜像到 Docker Hub
+docker push xmx0632/ai-terminal-home:1.0.0-linux-amd64
+docker push xmx0632/ai-terminal-home:1.0.0-linux-arm64
 
-# 然后标记并推送
-docker tag xmx0632/ai-terminal-home:1.0.0 xmx0632/ai-terminal-home:1.0.0
-docker push xmx0632/ai-terminal-home:1.0.0
+# 3. 创建多架构清单并推送
+# 首先创建并推送每个平台的清单
+docker manifest create xmx0632/ai-terminal-home:1.0.0 \
+    --amend xmx0632/ai-terminal-home:1.0.0-linux-amd64 \
+    --amend xmx0632/ai-terminal-home:1.0.0-linux-arm64
 
-# 3. 更新 latest 标签
+# 推送清单到 Docker Hub
+docker manifest push xmx0632/ai-terminal-home:1.0.0
+
+# 4. 更新 latest 标签
 ./build.sh update-latest 1.0.0
 ```
 
@@ -163,7 +178,14 @@ docker buildx rm mybuilder
 ### 1. 查看本地镜像
 
 ```bash
-docker buildx imagetools inspect your-username/ai-terminal:1.0.0
+# 查看所有本地镜像
+docker images | grep ai-terminal-home
+
+# 查看特定平台的镜像详情
+docker image inspect xmx0632/ai-terminal-home:1.0.0-linux-amd64
+
+# 查看多架构镜像清单（如果已创建）
+docker manifest inspect xmx0632/ai-terminal-home:1.0.0
 ```
 
 ### 2. 在 Docker Hub 上查看

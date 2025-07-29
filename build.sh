@@ -158,22 +158,26 @@ BUILD_ARGS=(
     --platform "$PLATFORMS"
 )
 
-# 如果只是构建不推送，使用 OCI 导出器
+# 如果是仅构建模式，确保镜像保存在本地
 if [ "$BUILD_ONLY" = true ]; then
-    echo "🔨 仅构建模式: 镜像将保存到 ${OUTPUT_DIR}/"
-    mkdir -p "${OUTPUT_DIR}"
-    # 为每个平台单独构建并保存
+    echo "🔨 仅构建模式: 镜像将保存到本地 Docker 镜像"
+    # 添加 --load 参数将镜像加载到本地 Docker
+    BUILD_ARGS+=(--load)
+    # 添加标签
+    BUILD_ARGS+=(-t "$FULL_IMAGE_NAME")
+    # 为每个平台单独构建并加载到本地
     IFS=',' read -ra PLATFORM_ARRAY <<< "$PLATFORMS"
     for platform in "${PLATFORM_ARRAY[@]}"; do
         platform_sanitized=${platform//\//-}
         echo "  正在构建平台: $platform"
         docker buildx build \
             --platform "$platform" \
-            -t "${FULL_IMAGE_NAME}" \
-            --output type=docker,dest="${OUTPUT_DIR}/${IMAGE_NAME}-${TAG}-${platform_sanitized}.tar" \
+            -t "${FULL_IMAGE_NAME}-${platform_sanitized}" \
+            --load \
             .
     done
-    echo "✅ 所有平台构建完成，镜像已保存到 ${OUTPUT_DIR}/"
+    echo "✅ 所有平台构建完成，镜像已加载到本地 Docker"
+    echo "   使用 'docker images | grep ${IMAGE_NAME}' 查看镜像"
     exit 0
 else
     # 推送模式，添加标签
