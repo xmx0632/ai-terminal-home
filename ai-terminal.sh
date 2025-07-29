@@ -23,6 +23,8 @@ show_help() {
     echo "  logs              查看容器日志"
     echo "  shell             进入容器 shell"
     echo "  versions          显示已安装工具的版本信息"
+    echo "  upgrade cc        升级容器内的 claudecode"
+    echo "  upgrade gcli      升级容器内的 gemini cli"
     echo "  help              显示此帮助信息"
     echo ""
     echo "示例:"
@@ -30,6 +32,8 @@ show_help() {
     echo "  $0 start"
     echo "  $0 stop"
     echo "  $0 logs"
+    echo "  $0 upgrade cc"
+    echo "  $0 upgrade gcli"
 }
 
 # 检查命令是否存在
@@ -235,6 +239,40 @@ show_versions() {
     fi
 }
 
+# 升级 claudecode
+upgrade_cc() {
+    if [ "$(docker ps -q -f name=^/${CONTAINER_NAME}$)" ]; then
+        echo -e "${YELLOW}正在升级 claudecode...${NC}"
+        docker exec ${CONTAINER_NAME} npm install -g @anthropic-ai/claude-code || {
+            echo -e "${RED}错误: 升级 claudecode 失败${NC}"
+            return 1
+        }
+        echo -e "${GREEN}claudecode 升级成功!${NC}"
+        echo -n "当前版本: "
+        docker exec ${CONTAINER_NAME} claude --version 2>/dev/null || echo "未知"
+    else
+        echo -e "${RED}错误: 容器未运行，请先启动容器${NC}"
+        exit 1
+    fi
+}
+
+# 升级 gemini cli
+upgrade_gcli() {
+    if [ "$(docker ps -q -f name=^/${CONTAINER_NAME}$)" ]; then
+        echo -e "${YELLOW}正在升级 gemini cli...${NC}"
+        docker exec ${CONTAINER_NAME} npm install -g @google/gemini-cli || {
+            echo -e "${RED}错误: 升级 gemini cli 失败${NC}"
+            return 1
+        }
+        echo -e "${GREEN}gemini cli 升级成功!${NC}"
+        echo -n "当前版本: "
+        docker exec ${CONTAINER_NAME} gemini --version 2>/dev/null || echo "未知"
+    else
+        echo -e "${RED}错误: 容器未运行，请先启动容器${NC}"
+        exit 1
+    fi
+}
+
 # 主函数
 main() {
     # 检查 Docker 是否安装
@@ -265,6 +303,21 @@ main() {
             ;;
         versions)
             show_versions
+            ;;
+        upgrade)
+            case "$2" in
+                cc)
+                    upgrade_cc
+                    ;;
+                gcli)
+                    upgrade_gcli
+                    ;;
+                *)
+                    echo -e "${RED}错误: 未知的升级目标 '$2'${NC}"
+                    echo "可用目标: cc, gcli"
+                    exit 1
+                    ;;
+            esac
             ;;
         help|--help|-h|*)
             show_help

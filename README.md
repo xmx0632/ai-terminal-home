@@ -105,6 +105,10 @@ all_proxy=socks5://127.0.0.1:7890
 
 # 查看已安装工具版本
 ./ai-terminal.sh versions
+
+# 升级工具
+./ai-terminal.sh upgrade cc    # 升级 claudecode
+./ai-terminal.sh upgrade gcli  # 升级 gemini cli
 ```
 
 ## 使用 tmux 管理会话
