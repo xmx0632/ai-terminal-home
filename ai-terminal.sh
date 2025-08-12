@@ -145,9 +145,9 @@ start_container() {
     fi
     
     # 停止并删除现有容器
-    if [ -n "$(docker ps -a -q -f name=^${CONTAINER_NAME}$)" ]; then
-        stop_container
-    fi
+    # if [ -n "$(docker ps -a -q -f name=^${CONTAINER_NAME}$)" ]; then
+    #     stop_container
+    # fi
     
     # 设置环境变量并启动容器
     echo -e "${YELLOW}正在启动容器...${NC}"
