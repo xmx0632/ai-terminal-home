@@ -1,6 +1,7 @@
 # Define common configuration for the service
 x-ai-terminal-common: &ai-terminal-common
   container_name: ai-terminal-home
+  network_mode: host
   tty: true
   stdin_open: true
   extra_hosts:
