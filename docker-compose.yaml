@@ -1,30 +1,38 @@
 # Define common configuration for the service
 x-ai-terminal-common: &ai-terminal-common
   container_name: ai-terminal-home
-  network_mode: host
+  # macOS Docker Desktop 不支持 network_mode: host，改用 bridge + ports
+  # network_mode: host
   tty: true
   stdin_open: true
   extra_hosts:
     - "host.docker.internal:host-gateway"
+  # 端口映射（vibe-kanban 需要用 HOST=0.0.0.0 启动）
+  ports:
+    - "56041:56041"
   # 启动命令示例:
   # HOST=0.0.0.0 PORT=56041 npx vibe-kanban &
   # claude --dangerously-skip-permissions
   env_file:
     - .env
-  # 安全设置：容器隔离确保宿主机安全
-  security_opt:
-    - no-new-privileges:true
-  # 限制容器权限
-  cap_drop:
-    - ALL
-  # Run as non-root user (uncomment if your image supports it)
-  # user: "${UID:-1000}:${GID:-1000}"
+  # environment:
+  #   - HOME=/home/node
+  # 安全设置（已禁用，允许 root 完全访问）
+  # security_opt:
+  #   - no-new-privileges:true
+  # cap_drop:
+  #   - ALL
+  # 容器以 root 运行，但 Claude Code --dangerously-skip-permissions 需要切换到普通用户
+  # 在容器内使用: su node -c "claude --dangerously-skip-permissions"
+  # user: "1000:1000"
   volumes:
     - ./data:/data
     - /etc/localtime:/etc/localtime:ro
     - /etc/timezone:/etc/timezone:ro
     # 持久化 Claude Code 配置（挂载本地目录，避免每次重新认证）
     - ./.claude:/root/.claude
+    # npm 缓存目录
+    - npm-cache:/root/.npm
   working_dir: /data
   restart: unless-stopped
 
@@ -44,3 +52,7 @@ services:
     # 优先使用本地镜像
     pull_policy: if_not_present
     profiles: ["pull"]
+
+# 命名卷定义
+volumes:
+  npm-cache:

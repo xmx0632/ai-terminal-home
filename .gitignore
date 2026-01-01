@@ -4,3 +4,4 @@ data
 *.local.keep
 build_output
 .claude/
+.npm/
