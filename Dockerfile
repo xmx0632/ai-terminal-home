@@ -71,6 +71,9 @@ RUN npm install -g @anthropic-ai/claude-code
 # 安装 Gemini CLI (官方 npm 包)
 RUN npm install -g @google/gemini-cli
 
+# 安装 vibe-kanban ，启动命令：HOST=0.0.0.0 PORT=56041 vibe-kanban
+RUN npm install -g vibe-kanban
+
 # 设置数据目录
 RUN mkdir -p /data
 
