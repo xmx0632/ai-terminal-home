@@ -6,12 +6,25 @@ x-ai-terminal-common: &ai-terminal-common
   stdin_open: true
   extra_hosts:
     - "host.docker.internal:host-gateway"
+  # 启动命令示例:
+  # HOST=0.0.0.0 PORT=56041 npx vibe-kanban &
+  # claude --dangerously-skip-permissions
   env_file:
     - .env
+  # 安全设置：容器隔离确保宿主机安全
+  security_opt:
+    - no-new-privileges:true
+  # 限制容器权限
+  cap_drop:
+    - ALL
+  # Run as non-root user (uncomment if your image supports it)
+  # user: "${UID:-1000}:${GID:-1000}"
   volumes:
     - ./data:/data
     - /etc/localtime:/etc/localtime:ro
     - /etc/timezone:/etc/timezone:ro
+    # 持久化 Claude Code 配置（挂载本地目录，避免每次重新认证）
+    - ./.claude:/root/.claude
   working_dir: /data
   restart: unless-stopped
 
